@@ -138,8 +138,10 @@ module fifo_tb;
     cycle(1'b1, 8'hED, 1'b1);
     chk.eq(64'(count), 64'(DEPTH) - 64'd1, "one slot free after read at full");
 
-    // Drain completely.
-    while (model.size() > 0) cycle(1'b0, '0, 1'b1);
+    // Drain completely. Bounded, so a DUT that never reports empty fails the
+    // test rather than hanging the regression on an unbounded wait.
+    for (int i = 0; i < 2 * DEPTH && model.size() > 0; i++) cycle(1'b0, '0, 1'b1);
+    chk.ok(model.size() == 0, $sformatf("drained within %0d cycles", 2 * DEPTH));
     chk.ok(empty === 1'b1, "empty after draining");
 
     // Reads while empty are ignored.

@@ -67,6 +67,9 @@ class Test:
 class Config:
     seed: int = 1
     scale: float = 1.0
+    # Per-test wall-clock limit. Every test finishes in seconds normally, so a
+    # test that hits this has hung rather than merely been slow.
+    timeout: int = 300
 
     def count(self, nominal):
         return max(1, int(nominal * self.scale))
@@ -277,7 +280,7 @@ def summarize(output):
     return ""
 
 
-def execute(test, cfg, defines, objdir, timeout=1800):
+def execute(test, cfg, defines, objdir, timeout):
     if os.path.isdir(objdir):
         shutil.rmtree(objdir)
     os.makedirs(objdir, exist_ok=True)
@@ -304,7 +307,7 @@ def run_regression(tests, cfg, verbose):
         objdir = os.path.join(BUILD, "regress", test.name)
         t0 = time.time()
         try:
-            ok, detail, log = execute(test, cfg, [], objdir)
+            ok, detail, log = execute(test, cfg, [], objdir, cfg.timeout)
         except subprocess.TimeoutExpired:
             ok, detail, log = False, "timed out", ""
         elapsed = time.time() - t0
@@ -336,7 +339,7 @@ def run_mutations(tests, cfg, mutations, verbose):
             objdir = os.path.join(BUILD, "mutation", bug, name)
             t0 = time.time()
             try:
-                ok, detail, log = execute(test, cfg, [bug], objdir)
+                ok, detail, log = execute(test, cfg, [bug], objdir, cfg.timeout)
             except subprocess.TimeoutExpired:
                 ok, detail, log = True, "timed out", ""
             elapsed = time.time() - t0
@@ -366,6 +369,8 @@ def main():
     ap.add_argument("--seed", type=int, default=1, help="stimulus seed")
     ap.add_argument("--scale", type=float, default=1.0,
                     help="multiply every stimulus count (default 1.0)")
+    ap.add_argument("--timeout", type=int, default=300,
+                    help="per-test wall-clock limit in seconds (default 300)")
     ap.add_argument("--filter", help="only run tests whose name contains this")
     ap.add_argument("--list", action="store_true", help="list tests and exit")
     ap.add_argument("--mutation", action="store_true",
@@ -380,7 +385,7 @@ def main():
             print(f"{t.name:<20} {t.sim:<10} {' '.join(t.tags)}")
         return 0
 
-    cfg = Config(seed=args.seed, scale=args.scale)
+    cfg = Config(seed=args.seed, scale=args.scale, timeout=args.timeout)
 
     if args.mutation:
         mutations = MUTATIONS
