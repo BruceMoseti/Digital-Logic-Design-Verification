@@ -24,7 +24,6 @@ module alu_props #(
   localparam logic [3:0] OP_SUB  = 4'd1;
   localparam logic [3:0] OP_AND  = 4'd2;
   localparam logic [3:0] OP_OR   = 4'd3;
-  localparam logic [3:0] OP_XOR  = 4'd4;
   localparam logic [3:0] OP_SLL  = 4'd5;
   localparam logic [3:0] OP_SRL  = 4'd6;
   localparam logic [3:0] OP_SRA  = 4'd7;

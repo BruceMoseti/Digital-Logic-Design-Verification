@@ -1,10 +1,19 @@
 // 8-tap FIR filter, retimed into four pipeline stages:
 //   S1: eight products                 S2: four partial sums
 //   S3: two partial sums               S4: final sum
-// This is arithmetically identical to fir8_direct (same coefficients, same
-// exact-width accumulator) but the critical path drops from
-// multiply + three adder levels to the slower of multiply or one adder.
-// Latency is 4 cycles from in_valid to out_valid.
+// Arithmetically identical to fir8_direct (same coefficients, same exact-width
+// accumulator), with a latency of 4 cycles instead of 1.
+//
+// Synthesis fuses the whole of fir8_direct into one partial-product reduction
+// feeding a single carry-propagate adder, so its longest path runs from the
+// coefficient and sample inputs through that entire structure: 2.43 ns. Cutting
+// it at the products leaves one multiply as the longest stage at 1.42 ns, with
+// the adder-only stages well short of that.
+//
+// Grouping two taps per stage-1 register was measured as well and is worse
+// (1.77 ns): a registered value has to be a plain binary number, so the
+// carry-propagate adder cannot be avoided at the boundary, and fusing two
+// products only deepens the reduction tree in front of it. See docs/timing.md.
 
 module fir8_pipelined #(
     parameter int DW   = 8,
