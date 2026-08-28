@@ -16,7 +16,7 @@ Everything runs on free, open-source tools. There is no vendor licence and
 nothing to buy.
 
 ```
-make test      11 tests across two simulators             ~14 s   → 11/11 pass
+make test      the full regression suite                  ~14 s   → 11/11 pass
 make mutation  9 deliberate bugs planted in the designs   ~26 s   → 9/9 caught
 make synth     gate-level size and speed of each design   ~6 min
 ```
@@ -48,8 +48,8 @@ ordinary code, but it means something quite different: instead of a list of
 steps to run, it describes structure — registers, logic gates, wires — and
 everything in it happens simultaneously, once per tick of a clock.
 
-The ALU is written in Verilog and the rest in SystemVerilog, the two languages
-that dominate the industry.
+The ALU is written in Verilog and the rest in SystemVerilog. Along with VHDL,
+these are the languages most production hardware is described in.
 
 ### 2. Checking it four independent ways
 
@@ -150,11 +150,12 @@ project got interesting, below.
 
 **Finally, try to break it.** After everything passed, I injected a fault that
 was deliberately *not* in the mutation list — an off-by-one in the FIFO's
-"empty" signal — to see what would happen. All four FIFO tests caught it. But
-one of them caught it by hanging rather than failing, because a loop in my own
-test code waited for a queue that would never drain. A hang is a much worse
-failure than a failure. That loop is now bounded, the timeout dropped from 30
-minutes to 5, and the same fault now reports in 2.3 seconds.
+"empty" signal — to see what would happen. The tests noticed, but one of them
+noticed by hanging instead of failing: a loop in my own test code sat waiting
+for a queue that would never drain. A hang is far worse than a failure, because
+it stalls the whole run and reports nothing at the end of it. That loop is now
+bounded, the per-test time limit dropped from 30 minutes to 5, and the same
+fault is now reported by all four FIFO tests within 2.3 seconds.
 
 ### The part I got wrong
 
