@@ -59,7 +59,11 @@ module fir8_direct #(
       out_sample <= '0;
       for (int i = 0; i < TAPS; i++) sr[i] <= '0;
     end else begin
+`ifdef BUG_FIR_VALID
+      if (in_valid) out_valid <= 1'b1;
+`else
       out_valid <= in_valid;
+`endif
       if (in_valid) begin
         out_sample <= acc;
         for (int i = 0; i < TAPS; i++) sr[i] <= nxt[i];

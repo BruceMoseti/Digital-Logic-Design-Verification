@@ -64,7 +64,11 @@ module fir8_pipelined #(
       v1        <= in_valid;
       v2        <= v1;
       v3        <= v2;
+`ifdef BUG_FIR_VALID
+      out_valid <= v2;
+`else
       out_valid <= v3;
+`endif
 
       if (in_valid) begin
         for (int i = 0; i < TAPS; i++) begin
