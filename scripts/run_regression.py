@@ -46,6 +46,9 @@ TB_WAIVERS = ["-Wno-BLKSEQ", "-Wno-DECLFILENAME", "-Wno-SYNCASYNCNET"]
 
 FIR_CFLAGS = ["-DDUT_DW=8", "-DDUT_CW=8", "-DDUT_ACCW=19"]
 
+# Parallelism for the C++ compilation Verilator drives.
+VERILATOR_JOBS = "4"
+
 
 def abspaths(rel):
     return [os.path.join(ROOT, p) for p in rel]
@@ -57,8 +60,6 @@ class Test:
     sim: str
     build: Callable[[str, List[str]], List[List[str]]]
     run: Callable[[str, "Config"], List[str]]
-    scale: int = 0  # nominal stimulus count, scaled by --scale
-    detail: str = ""
     tags: List[str] = field(default_factory=list)
 
 
@@ -66,13 +67,12 @@ class Test:
 class Config:
     seed: int = 1
     scale: float = 1.0
-    jobs: int = 4
 
     def count(self, nominal):
         return max(1, int(nominal * self.scale))
 
 
-def iverilog_test(name, sources, top, plusargs, scale=0, tags=()):
+def iverilog_test(name, sources, top, plusargs, tags=()):
     def build(objdir, defines):
         out = os.path.join(objdir, "sim.vvp")
         cmd = ["iverilog", "-g2012", "-o", out, "-s", top]
@@ -83,15 +83,15 @@ def iverilog_test(name, sources, top, plusargs, scale=0, tags=()):
     def run(objdir, cfg):
         return ["vvp", os.path.join(objdir, "sim.vvp")] + plusargs(cfg)
 
-    return Test(name, "icarus", build, run, scale, tags=list(tags))
+    return Test(name, "icarus", build, run, tags=list(tags))
 
 
-def verilator_sv_test(name, sources, top, plusargs, scale=0, tags=()):
+def verilator_sv_test(name, sources, top, plusargs, tags=()):
     def build(objdir, defines):
         cmd = [
             "verilator", "--binary", "--timing", "--assert", "-Wall",
-            *TB_WAIVERS, "--prefix", "Vdut", "--Mdir", objdir, "-o", "sim",
-            "--top-module", top,
+            *TB_WAIVERS, "-j", VERILATOR_JOBS, "--prefix", "Vdut",
+            "--Mdir", objdir, "-o", "sim", "--top-module", top,
         ]
         cmd += [f"-D{d}" for d in defines]
         cmd += abspaths(sources)
@@ -100,16 +100,16 @@ def verilator_sv_test(name, sources, top, plusargs, scale=0, tags=()):
     def run(objdir, cfg):
         return [os.path.join(objdir, "sim")] + plusargs(cfg)
 
-    return Test(name, "verilator", build, run, scale, tags=list(tags))
+    return Test(name, "verilator", build, run, tags=list(tags))
 
 
 def verilator_cpp_test(name, sources, cpp_sources, top, cflags, args,
-                       params=(), scale=0, tags=()):
+                       params=(), tags=()):
     def build(objdir, defines):
         cmd = [
             "verilator", "--cc", "--exe", "--build", "--assert", "-Wall",
-            *TB_WAIVERS, "--prefix", "Vdut", "--Mdir", objdir, "-o", "sim",
-            "--top-module", top,
+            *TB_WAIVERS, "-j", VERILATOR_JOBS, "--prefix", "Vdut",
+            "--Mdir", objdir, "-o", "sim", "--top-module", top,
         ]
         cmd += list(params)
         cmd += [f"-D{d}" for d in defines]
@@ -120,7 +120,7 @@ def verilator_cpp_test(name, sources, cpp_sources, top, cflags, args,
     def run(objdir, cfg):
         return [os.path.join(objdir, "sim")] + args(cfg)
 
-    return Test(name, "verilator", build, run, scale, tags=list(tags))
+    return Test(name, "verilator", build, run, tags=list(tags))
 
 
 def lint_test():
@@ -173,7 +173,6 @@ def all_tests():
             "fifo_tb",
             lambda cfg: [f"+SEED={cfg.seed}", f"+CYCLES={cfg.count(4000)}",
                          "+TEST=random"],
-            scale=4000,
             tags=["fifo"],
         ),
 
@@ -194,7 +193,6 @@ def all_tests():
             "fifo_tb",
             lambda cfg: [f"+SEED={cfg.seed}", f"+CYCLES={cfg.count(4000)}",
                          "+TEST=random"],
-            scale=4000,
             tags=["fifo", "sva"],
         ),
 
@@ -217,7 +215,6 @@ def all_tests():
             params=["-GW=32"],
             args=lambda cfg: ["--vectors", str(cfg.count(2000000)),
                               "--seed", str(cfg.seed)],
-            scale=2000000,
             tags=["alu", "sva"],
         ),
 
@@ -230,7 +227,6 @@ def all_tests():
             cflags=FIR_CFLAGS + ["-DDUT_LATENCY=1"],
             args=lambda cfg: ["--vectors", str(cfg.count(50000)),
                               "--seed", str(cfg.seed)],
-            scale=50000,
             tags=["fir", "sva"],
         ),
         verilator_cpp_test(
@@ -242,7 +238,6 @@ def all_tests():
             cflags=FIR_CFLAGS + ["-DDUT_LATENCY=4"],
             args=lambda cfg: ["--vectors", str(cfg.count(50000)),
                               "--seed", str(cfg.seed)],
-            scale=50000,
             tags=["fir", "sva"],
         ),
     ]
@@ -270,15 +265,15 @@ DETAIL_PATTERNS = [
 
 
 def summarize(output):
+    """Pick one line to show: whichever reports a failure, else the last match."""
     for pattern in DETAIL_PATTERNS:
-        found = pattern.findall(output)
-        if found:
-            line = pattern.search(output).group(0)
-            for m in pattern.finditer(output):
-                line = m.group(0)
-                if "FAIL" in line or "Error" in line or "Assertion" in line:
-                    break
-            return line.strip()[:110]
+        matches = pattern.findall(output)
+        if not matches:
+            continue
+        for line in matches:
+            if any(word in line for word in ("FAIL", "Error", "Assertion")):
+                return line.strip()[:110]
+        return matches[-1].strip()[:110]
     return ""
 
 

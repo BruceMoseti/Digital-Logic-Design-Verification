@@ -32,7 +32,7 @@ sample input feed the multipliers directly from module ports.
 
 ## Results
 
-| design | cells | registers | area | critical path | | Fmax |
+| design | cells | registers | area | critical path | path type | Fmax |
 | --- | --- | --- | --- | --- | --- | --- |
 | `alu` (W=32) | 1438 | 0 | 3921 | 1.883 ns | input to output | n/a |
 | `sync_fifo` (8x8) | 280 | 74 | 1584 | 0.663 ns | register to register | 1508 MHz |

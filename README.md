@@ -9,8 +9,8 @@ Everything here runs from open-source tools; there is no vendor flow and nothing
 to license.
 
 ```
-make test      # 11 tests, 3 simulators, ~26 s
-make mutation  # inject 9 RTL faults, require the suite to catch each, ~50 s
+make test      # 11 tests across Icarus, Verilator and Python, ~14 s
+make mutation  # inject 9 RTL faults, require the suite to catch each, ~26 s
 make synth     # map to a cell library and report area and timing, ~6 min
 make all       # all of the above
 ```
@@ -157,7 +157,7 @@ gets analysed therefore cannot describe different libraries.
 ## Prerequisites
 
 Icarus Verilog 12.0, Verilator 5.020, Yosys 0.33 with `yosys-abc`, a C++17
-compiler, Python 3.8+. On Debian or Ubuntu:
+compiler, Python 3.8 or newer (tested on 3.12). On Debian or Ubuntu:
 
 ```bash
 sudo apt-get install -y iverilog verilator yosys build-essential python3
