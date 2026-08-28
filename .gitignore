@@ -1,0 +1,6 @@
+build/
+reports/
+*.vvp
+*.vcd
+__pycache__/
+*.pyc
